@@ -1,0 +1,11 @@
+# 每行一个订阅/分享链接（以 # 开头的行会被忽略）
+
+# 以下均为 base64 / 明文链接格式，爬虫可直接解析
+
+# Au1rxx/free-vpn-subscriptions
+
+https://github.com/Au1rxx/free-vpn-subscriptions/raw/main/output/v2ray-base64.txt
+
+# zhuhaiuk/free-nodes
+
+https://raw.githubusercontent.com/zhuhaiuk/free-nodes/main/nodes.txt
