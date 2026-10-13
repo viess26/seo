@@ -122,7 +122,7 @@ def clash_to_links(text):
 
 def fetch(url):
     try:
-        r = requests.get(url, headers=HEADERS, timeout=15)
+        r = requests.get(url, headers=HEADERS, timeout=10)
         r.raise_for_status()
     except Exception as e:
         print(f"[fail] {url}: {e}")
@@ -172,9 +172,8 @@ def tcp_test(item):
 
 
 def main():
-    raw = []
-    for url in load_sources():
-        raw.extend(fetch(url))
+    with ThreadPoolExecutor(max_workers=16) as ex:
+        raw = [l for links in ex.map(fetch, load_sources()) for l in links]
 
     seen, nodes = set(), []
     for link in raw:
