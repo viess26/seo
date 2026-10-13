@@ -3,6 +3,8 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
 
 from crawler import fetch
@@ -19,6 +21,8 @@ ACTIVE_DAYS = 7         # 只看最近 N 天有推送的仓库
 MAX_FILES_PER_REPO = 5
 MIN_LINKS = 10          # 文件里至少有这么多节点链接才算有效源
 MAX_SOURCES = 30
+MAX_CANDIDATES = 150    # 最多验证多少个候选文件
+WORKERS = 16
 
 FILE_RE = re.compile(r"(?i)(node|sub|v2ray|vmess|vless|trojan|base64|mix|all|free|config|clash|proxies?)[^/]*\.(txt|ya?ml)$")
 EXCLUDE_RE = re.compile(r"(?i)readme|requirements|license|changelog|blacklist|domain|compose|mkdocs|workflow|^\.")
@@ -70,15 +74,18 @@ def candidate_files(full_name, branch):
 
 
 def main():
-    good = []
-    for full_name, branch in search_repos().items():
-        for url in candidate_files(full_name, branch):
-            if len(fetch(url)) >= MIN_LINKS:
-                good.append(url)
-            if len(good) >= MAX_SOURCES:
-                break
-        if len(good) >= MAX_SOURCES:
-            break
+    repos = search_repos()
+
+    # 1) 并发列出各仓库的候选文件
+    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        groups = ex.map(lambda kv: candidate_files(*kv), repos.items())
+    candidates = [u for g in groups for u in g][:MAX_CANDIDATES]
+    print(f"候选文件 {len(candidates)} 个，开始并发验证...")
+
+    # 2) 并发下载验证
+    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        counts = list(ex.map(lambda u: len(fetch(u)), candidates))
+    good = [u for u, n in zip(candidates, counts) if n >= MIN_LINKS][:MAX_SOURCES]
 
     with open("sources_auto.txt", "w", encoding="utf-8") as f:
         f.write("# 由 discover.py 自动生成，请勿手动编辑\n")
